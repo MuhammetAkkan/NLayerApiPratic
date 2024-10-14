@@ -1,4 +1,3 @@
 ﻿namespace App.Service.Products;
 
-public record ProductDto(int Id, string Name ,decimal Price, int UnitStock);
-
+public record ProductDto(int Id, string Name, int UnitStock, decimal Price, int CategoryId);

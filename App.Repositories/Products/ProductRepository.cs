@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace App.Repositories.Models.Products;
 
-public class ProductRepository(AppDbContext context) : GenericRepositories<Product>(context), IProductRepository
+public class ProductRepository(AppDbContext context) : GenericRepositories<Product, int>(context), IProductRepository
 {
 
     private readonly AppDbContext _context = context;

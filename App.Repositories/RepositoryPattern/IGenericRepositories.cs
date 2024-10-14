@@ -2,7 +2,7 @@
 
 namespace App.Repositories.RepositoryPattern;
 
-public interface IGenericRepositories<T> where T : class
+public interface IGenericRepositories<T, in TId> where T : class where TId : struct
 {
     void Update(T entity);
     void Delete(T entity);
@@ -14,4 +14,6 @@ public interface IGenericRepositories<T> where T : class
     ValueTask<T?> GetByIdAsync(int id);
 
     ValueTask CreateAsync(T entity);
+
+    Task<bool> AnyAsync(TId id);
 }

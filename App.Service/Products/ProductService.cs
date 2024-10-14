@@ -1,113 +1,139 @@
 ﻿using App.Repositories.Models.Products;
 using App.Repositories.UnitOfWorkPattern;
+using App.Service.Products.Create;
+using App.Service.Products.Update;
+using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using System.Net;
+using System.Runtime.InteropServices;
 
 namespace App.Service.Products;
 
-public class ProductService(IProductRepository productRepository, IUnitOfWork unitOfWork) : IProductService
+public class ProductService(IProductRepository _productRepository, IUnitOfWork _unitOfWork, IMapper mapper) : IProductService
 {
-    public async Task<ServiceResult<CreateProductResponse>> CreateProductAsync(CreateProductRequest request)
+    
+    public async Task<ServiceResult<CreateProductResponse>> Create(CreateProductRequest createRequest)
     {
+        var product = mapper.Map<Product>(createRequest);
         
-        var product = new Product
-        {
-            Name = request.Name,
-            Price = request.Price,
-            UnitStock = request.UnitStock
-        };
 
-        await productRepository.CreateAsync(product);
+        await _productRepository.CreateAsync(product);
 
-        await unitOfWork.SaveChangesAsync();
+        await _unitOfWork.SaveChangesAsync();
+
 
         var url = $"api/products/{product.Id}";
 
         return ServiceResult<CreateProductResponse>.SuccessAsCreated(new CreateProductResponse(product.Id), url);
+
     }
+
 
     public async Task<ServiceResult> Delete(int id)
     {
-        var item = await productRepository.GetByIdAsync(id);
+        var item  = await _productRepository.GetByIdAsync(id);
 
-        if(item is null)
-        {
-            return ServiceResult.Fail("Product not found", System.Net.HttpStatusCode.BadRequest);
-        }
+        if(item is null) return ServiceResult.Fail("Item not found");
+        
+        _productRepository.Delete(item);
 
-        productRepository.Delete(item);
+        await _unitOfWork.SaveChangesAsync();
 
-        await unitOfWork.SaveChangesAsync();
-
-        return ServiceResult.Success();
+        return ServiceResult.Success(statusCode:HttpStatusCode.NoContent);
     }
+
 
     public async Task<ServiceResult<List<ProductDto>>> GetAllListAsync()
     {
-        var items = productRepository.GetAllListAsync();
+        var products = await _productRepository.GetAllListAsync().ToListAsync();
 
-        if(!items.Any())
-        {
-            return ServiceResult<List<ProductDto>>.Fail("Products not found", System.Net.HttpStatusCode.NotFound);
-        }
+        #region AutoMapper
+        var productAsDto = mapper.Map<List<ProductDto>>(products);
+        #endregion
 
-        var productDtos = await items.Select(x => new ProductDto(x.Id, x.Name, x.Price, x.UnitStock)).ToListAsync();
-
-        return ServiceResult<List<ProductDto>>.Success(productDtos);
-
+        return ServiceResult<List<ProductDto>>.Success(productAsDto);
     }
 
 
-    public async Task<ServiceResult<ProductDto?>> GetByIdAsync(int id)
+    public async Task<ServiceResult<ProductDto>> GetByIdAsync(int id)
     {
-        var item = await productRepository.GetByIdAsync(id);
+        var product = await _productRepository.GetByIdAsync(id);
 
-        if (item is null)
-        {
-            return ServiceResult<ProductDto?>.Fail("Product not found", System.Net.HttpStatusCode.NotFound);
-        }
+        if(product is null) return ServiceResult<ProductDto>.Fail("Product not found");
 
-        var productDto = new ProductDto(item.Id, item.Name, item.Price, item.UnitStock);
-
-        return ServiceResult<ProductDto?>.Success(productDto);
+        #region AutoMapper
+        var productAsDto = mapper.Map<ProductDto>(product);
+        #endregion
+        return ServiceResult<ProductDto>.Success(productAsDto);
     }
 
-    public async Task<ServiceResult<List<ProductDto>>> GetPagedWithAllListAsync(int page, int pageSize)
+
+    public async Task<ServiceResult<ProductDto>> GetByMaxPrice()
     {
-        var items = productRepository.GetAllListAsync();
+        var product = await _productRepository.Where(i=> i.Price == _productRepository.GetAllListAsync().Max(i => i.Price)).ToListAsync();
 
-        var skipValue = (page - 1) * pageSize;
+        #region AutoMapper
+        var productAsDto = mapper.Map<ProductDto>(product);
+        #endregion
 
-        // Sayfalama işlemi yapıyoruz
-        var pagedItems = await items
-                            .Skip(skipValue)
-                            .Take(pageSize)
-                            .Select(x => new ProductDto(x.Id, x.Name, x.Price, x.UnitStock))
-                            .ToListAsync();
-
-        // Eğer veri yoksa hata dönüyoruz
-        if (!items.Any())
-        {
-            return ServiceResult<List<ProductDto>>.Fail("Products not found", System.Net.HttpStatusCode.NotFound);
-        }
-
-        
-
-        return ServiceResult<List<ProductDto>>.Success(pagedItems);
+        return ServiceResult<ProductDto>.Success(productAsDto);
     }
 
-    public async Task<ServiceResult> Update(int id, UpdateProductRequest updateRequest)
+
+    public async Task<ServiceResult<ProductDto>> GetByMinPrice()
     {
-        var item = await productRepository.GetByIdAsync(id);
-        
-        if(item is null)
-        {
-            return ServiceResult.Fail("Product not found", System.Net.HttpStatusCode.NotFound);
-        }
+        var product = await _productRepository.Where(i => i.Price == _productRepository.GetAllListAsync().Min(i => i.Price)).ToListAsync();
 
-        item.Name = updateRequest.Name;
-        item.Price = updateRequest.Price;
-        item.UnitStock = updateRequest.UnitStock;
+        #region AutoMapper
+        var productAsDto = mapper.Map<ProductDto>(product);
+        #endregion
 
-        return ServiceResult.Success();
+        return ServiceResult<ProductDto>.Success(productAsDto);
+    }
+
+
+    public async Task<ServiceResult<List<ProductDto>>> GetPagedWithAl(int pageNumber, int pageSize)
+    {
+        int startValue = (pageNumber - 1) * pageSize; //(2-1)*10 = 10
+        var products = await _productRepository.GetAllListAsync().Skip(startValue).Take(pageNumber).ToListAsync();
+
+        //automapper
+        var productAsDto = mapper.Map<List<ProductDto>>(products);
+
+        return ServiceResult<List<ProductDto>>.Success(productAsDto);
+    }
+
+    public async Task<ServiceResult<List<ProductDto>>> GetPriceWithKdv()
+    {
+        var products = await _productRepository.GetAllListAsync().ToListAsync();
+
+        #region ManuelMapping
+        //var productAsDto = products.Select(i => new ProductDTO(i.Id, i.Name, i.UnitStock, i.Price * 1.18m)).ToList();
+        #endregion
+
+        //kdv
+        products.ForEach(i=> i.Price = i.Price * 1.20m);
+
+        var productAsDto = mapper.Map<List<ProductDto>>(products);
+
+        return ServiceResult<List<ProductDto>>.Success(productAsDto);
+
+    }
+
+    public async Task<ServiceResult> Update(int Id ,UpdateProductRequest updateRequest)
+    {
+        var product = await _productRepository.GetByIdAsync(Id);
+
+        if (product is null) return ServiceResult.Fail("Product not found");
+
+        product.Name = updateRequest.Name;
+        product.Price = updateRequest.Price;
+        product.UnitStock = updateRequest.UnitStock;
+
+        await _unitOfWork.SaveChangesAsync();
+
+        return ServiceResult.Success(HttpStatusCode.NoContent);
+
+
     }
 }

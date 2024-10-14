@@ -3,11 +3,13 @@ using System.Linq.Expressions;
 
 namespace App.Repositories.RepositoryPattern;
 
-public class GenericRepositories<T>(AppDbContext context) : IGenericRepositories<T> where T : class
+public class GenericRepositories<T, TId>(AppDbContext context) : IGenericRepositories<T, TId> where T: BaseEntity<TId> where TId : struct
 {
     private readonly DbSet<T> _dbSet = context.Set<T>();
 
     public async ValueTask CreateAsync(T entity) => await _dbSet.AddAsync(entity);
+    public async Task<bool> AnyAsync(TId id) => await _dbSet.AnyAsync(x => x.Id.Equals(id));
+    
 
     public void Delete(T entity)
     {

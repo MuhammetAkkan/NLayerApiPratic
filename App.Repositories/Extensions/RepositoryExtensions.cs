@@ -1,4 +1,6 @@
-﻿using App.Repositories.Models.Products;
+﻿using App.Repositories.Categories;
+using App.Repositories.Interceptors;
+using App.Repositories.Models.Products;
 using App.Repositories.RepositoryPattern;
 using App.Repositories.UnitOfWorkPattern;
 using Microsoft.EntityFrameworkCore;
@@ -20,21 +22,21 @@ public static class RepositoryExtensions
                 sqlServerOptionsAction.MigrationsAssembly(typeof(RepositoryAssembly).Assembly.FullName); //migration işlemleri için gerekli
             });
 
+            options.AddInterceptors(new AuditDbContextInterceptor());
+
         });
 
         //scoped lar dbContext ile ilgili olduğu için burada tanımlanmalıdır.
 
         //genel scoped
-        services.AddScoped(typeof(IGenericRepositories<>), typeof(GenericRepositories<>));
+        services.AddScoped(typeof(IGenericRepositories<,>), typeof(GenericRepositories<,>));
 
         //Product scoped
         services.AddScoped<IProductRepository, ProductRepository>();
-
+        services.AddScoped<ICategoryRepository, CategoryRepository>();
+        
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
-
         return services;
-        // Add your repository extensions here
-
     }
 }

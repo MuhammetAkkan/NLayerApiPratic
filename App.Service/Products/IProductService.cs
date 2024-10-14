@@ -1,29 +1,28 @@
-﻿namespace App.Service.Products;
+﻿using App.Service.Products.Create;
+using App.Service.Products.Update;
 
+namespace App.Service.Products;
 public interface IProductService
 {
     Task<ServiceResult<List<ProductDto>>> GetAllListAsync();
 
-    Task<ServiceResult<List<ProductDto>>> GetPagedWithAllListAsync(int page, int pageSize);
+    Task<ServiceResult<ProductDto>> GetByIdAsync(int id);
 
-    Task<ServiceResult<ProductDto?>> GetByIdAsync(int id);
+    //create
+    Task<ServiceResult<CreateProductResponse>> Create(CreateProductRequest createRequest);
 
-    
-    //Crud Start
-    Task<ServiceResult> Update(int id, UpdateProductRequest updateRequest);
-
+    //update
+    Task<ServiceResult> Update(int Id ,UpdateProductRequest updateRequest);
 
     Task<ServiceResult> Delete(int id);
 
+    Task<ServiceResult<List<ProductDto>>> GetPagedWithAl(int pageNumber, int pageSize);
 
-    Task<ServiceResult<CreateProductResponse>> CreateProductAsync(CreateProductRequest request);
+    Task<ServiceResult<ProductDto>> GetByMaxPrice();
 
-    //Crud End
+    Task<ServiceResult<ProductDto>> GetByMinPrice();
 
-
-
-
-
+    Task<ServiceResult<List<ProductDto>>> GetPriceWithKdv();
 
 
 }
